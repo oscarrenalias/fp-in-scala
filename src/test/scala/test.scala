@@ -1,15 +1,11 @@
-import org.scalatest.FlatSpec
-import org.scalatest.matchers.ShouldMatchers
+import org.specs2.mutable._
 
-class FooSpec extends FlatSpec with ShouldMatchers {
+class AnalyzerSpec extends Specification {
 
-  "This test" should "pass with flying colours" in {
-    val stack = 2
-    stack should equal (2)
-}
-
-  it should "fail on this test though" in {
-    val something = "foo"
-    evaluating { something  } should produce [NoSuchMethodException]
+  "This test" should {
+	"pass with flying colours" in {
+		val stack = 2
+    	stack must equalTo(2)
+	}
   }
 }
