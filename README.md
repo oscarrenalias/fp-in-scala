@@ -1,1 +1,1 @@
-really basic project template with sbt 0.11 with a working hello world and couple of basic scalatest tests
+Basic project template for SBT 0.12 and the sbt-idea plugin (version 1.1.0)
