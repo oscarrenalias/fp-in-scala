@@ -1,1 +1,1 @@
-Basic project template for SBT 0.12 and the sbt-idea plugin (version 1.1.0)
+Repository for my take on the exercises that are provided in book "Functional Programming in Scala"
