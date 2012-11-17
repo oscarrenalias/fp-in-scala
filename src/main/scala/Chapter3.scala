@@ -116,7 +116,9 @@ package object Chapter3 {
     //}
 
     // Exercise 15 - implement append in terms of foldLeft or foldRight
-    def append[A](l1:List[A], l2:List[A]):List[A] =
+    def append[A](l1:List[A], l2:List[A]):List[A] = {
+      foldLeft(l1, l2)((x,y) => Cons(x,y))
+    }
 
     // Exercise 16 (hard) - Write a function that concatenates a list of lists into
     // a single list. Its runtime should be linear in the total length of all lists.
@@ -140,5 +142,87 @@ package object Chapter3 {
     // now we can reimplemented add1 and doubleToString
     map(List(1,2,3))(_ + 1)
     map(List(1.0, 2.0, 3.0))(_.toString)
+
+    // Exercise 20: implement the filter function that will remove all elements from the list unless they match the given predicate
+    def filter[A](l: List[A])(f: Pred[A]) = {
+      (foldLeft(l, _:List[A])((x,y) => if(f(x)) Cons(x, y); else y))(Nil)
+    }
+
+    // Exercise 21: implement flatMap, that works like map except that the
+    // function given will return a list instead of a single result, and that
+    // list should be inserted into the final resulting list
+    def flatMap[A,B](l:List[A])(f: A => List[B]): List[B] = {
+      foldLeft(l, List[B]())((x,y) => append(f(x), y))
+    }
+    // Note: it logically works, but the order of the elements is kind of funny
+
+    // Exercise 22: can you use flatMap to implement filter?
+    def filter_flatMap[A](l: List[A])(f: Pred[A]): List[A] = {
+      flatMap(l)(x => if(f(x)) List(x); else List[A]())
+    }
+
+    // Exercise 23: write a function that accepts two lists and constructs a new
+    // list by adding corresponding elements. For example List(1,2,3) and 
+    // List(4,5,6) becomes List(5,7,9)
+    def addIntLists(l1:List[Int], l2:List[Int]):List[Int] = {
+      def innerAdd(lTotal:List[Int], l1:List[Int], l2:List[Int]): List[Int] = {
+        (l1,l2) match {
+          case (Nil, _) => lTotal
+          case (Cons(h1, t1), Cons(h2, t2)) => innerAdd(Cons(h1 + h2, lTotal), t1, t2)
+        }
+      }
+      innerAdd(List[Int](), l1, l2)
+      
+    }
+    val lInt1 = List(1,2,3)
+    val lInt2 = List(4,5,6)
+    val lIntSum = addIntLists(lInt1, lInt2)
+
+    // Exercise 24: generalize the function you just wrote so that it's not
+    // specific to integers or addition
+    def addLists[A,B,C](l1:List[A], l2:List[B])(f: (A,B) => C):List[C] = {
+      def innerAdd(lTotal:List[C], l1:List[A], l2:List[B]): List[C] = {
+        (l1,l2) match {
+          case (_, Nil) => lTotal
+          case (Nil, _) => lTotal
+          case (Cons(h1, t1), Cons(h2, t2)) => innerAdd(Cons(f(h1,h2), lTotal), t1, t2)
+        }
+      }
+      innerAdd(List[C](), l1, l2)
+    }
+    // and now we can redefine addIntLists
+    def betterAddIntLists(l1:List[Int], l2:List[Int]) = addLists(lInt1, lInt2)(_ + _)
+    val lIntSum2 = betterAddIntLists(lInt1, lInt2)
+
+    // Exercise 25 (hard): implement hasSubsequence for checking whether a list
+    // contains another List as a subsequence. For instance, List(1,2,3,4) would
+    // have List(1,2), List(2,3) and List(4) as subsequences
+    
+    // helper method that returns true if the given list has the second
+    // list as a prefix, e.g. List(1,2,3) has prefix List(1), List(1,2) and 
+    // List(1,2,3) but not List(2,3)
+    def hasPrefix[A](list:List[A], prefix:List[A]): Boolean = {
+      def innerHasPrefix(acc: Boolean, l1:List[A], l2:List[A]): Boolean = {
+        (acc, l1,l2) match {
+          case (false, _, _) => false
+          case (true, _, Nil) => true
+          case (true, Nil, _) => false
+          case (true, Cons(h1, t1), Cons(h2, t2)) => innerHasPrefix(acc && (h1 == h2), t1, t2)
+        }
+      }
+      
+      innerHasPrefix(true, list, prefix)      
+    }
+
+    def hasSubsequence[A](list: List[A], sub: List[A]): Boolean = {
+      def innerHasSubsequence[A](acc: Boolean, l1:List[A], sub:List[A]): Boolean = {
+        (acc, l1, l2) match {
+          case(true, _, _) => true
+          case(acc, Cons(h1, t1), l) => innerHasSubsequence(hasPrefix(t1, l), t1, l)
+        }
+      }
+
+      innerHasSubsequence(false, list, sub)
+    }
   }
 }
