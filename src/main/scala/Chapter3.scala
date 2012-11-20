@@ -1,5 +1,5 @@
 
-package object Chapter3 {
+package object List {
 
   // this implementation of List was provided in the book:
   sealed trait List[+A]
@@ -214,15 +214,101 @@ package object Chapter3 {
       innerHasPrefix(true, list, prefix)      
     }
 
+    // Seems to work, though I don't think it's the most optiomal implementation ever
     def hasSubsequence[A](list: List[A], sub: List[A]): Boolean = {
       def innerHasSubsequence[A](acc: Boolean, l1:List[A], sub:List[A]): Boolean = {
-        (acc, l1, l2) match {
-          case(true, _, _) => true
-          case(acc, Cons(h1, t1), l) => innerHasSubsequence(hasPrefix(t1, l), t1, l)
+        // if the accumulator is true, we're good
+        // if the lists are not empty yet, deconstruct the first and check
+        // if the second is a prefix of the first minus its head
+        // if either of the lists is over, return whatever value the boolean accumulator has
+        (acc, l1, sub) match {
+          case(true, _, _) => true  
+          case(_, Cons(h1, t1), l) => innerHasSubsequence(hasPrefix(Cons(h1, t1), l), t1, l)
+          case(acc, Nil, l) => acc
+          case(acc, l, Nil) => acc
         }
       }
 
       innerHasSubsequence(false, list, sub)
     }
+  }
+}
+
+package object Tree {
+
+  sealed trait Tree[+A]
+  case class Leaf[A](value: A) extends Tree[A]
+  case class Branch[A](left: Tree[A], right: Tree[A]) extends Tree[A]
+
+  val t1 = Branch(Leaf(1), Leaf(2))
+  val t2 = Branch(Branch(t1, t1), Branch(t1, t1))
+  val t3 = Branch(Branch(Leaf(1), Leaf(2)), Branch(Leaf(10), Leaf(11)))
+  val t4 = Branch(Branch(Branch(Leaf(1), Leaf(2)), Leaf(3)), Leaf(4))
+
+  // Exercise 26 - write a function size that counts the number of nodes
+  // in a tree
+  def size[A](t:Tree[A]): Int = {
+    // note: this is not tail recursive
+    t match {
+      case Branch(left, right) => size(left) + size(right) + 1
+      case _ => 1
+    }
+  }
+
+  // Exercise 27 - a function that finds the highest value in a Tree[Int]
+  def max(t:Tree[Int]): Int = {
+    // again, not case recursive - but it could be
+    def innerMax(maxVal: Int, t:Tree[Int]):Int = t match {
+      case Branch(left, right) => innerMax(maxVal, right) max innerMax(maxVal, left) 
+      case Leaf(v) if(v > maxVal) => v
+      case Leaf(v) => maxVal
+    }
+
+    innerMax(0, t)
+  }
+
+  // Exercise 28 - function depth that find the maximum path length
+  // from the roof of a tree to any leaf
+  def depth[A](t: Tree[A]): Int = t match {
+    case Branch(left, right) => 1 + (depth(left) max depth(right))
+    case _ => 1
+  }
+
+  // Exercise 29 - map function
+  def map[A,B](t: Tree[A])(f: A => B): Tree[B] = t match {
+    case Branch(left, right) => Branch(map(left)(f), map(right)(f))
+    case Leaf(v) => Leaf(f(v))
+  }
+
+  // Exercise 30 - Generalize size, maximum, depth, and map, writing a new 
+  // function fold that abstracts over their similarities. Reimplement them in terms of
+  // this more general function. Can you draw an analogy between this fold function 
+  // and the left and right folds for List?
+  def fold_Bad[A,B](t:Tree[A], z:B)(f:(A,B) => B): B = t match {
+    case Branch(left, right) => fold(left, fold(right, z)(f))(f)
+    case Leaf(v) => f(v, z)
+  }
+  // Please note that the signature above was wrong; from the solutions, the following was the
+  // correct signature:
+  def fold[A,B](t: Tree[A])(f: A => B)(g: (B,B) => B): B = t match {
+    case Leaf(a) => f(a)    
+    case Branch(left, right) => g(fold(left)(f)(g), fold(right)(f)(g))
+  }
+
+  def size_fold[A](t:Tree[A]): Int = {
+    fold(t)(a=>1)(1 + _ + _)
+  }
+
+  def max_fold(t:Tree[Int]): Int = {
+    fold(t)(a=>a)(_ max _) 
+  }
+
+  // NOTE: I did not get these two right, so these are the implementations from the solution
+  def depth_fold[A](t:Tree[A]): Int = {
+    fold(t)(a => 0)((d1,d2) => 1 + (d1 max d2))
+  }
+
+  def map_fold[A,B](t:Tree[A])(f:A => B): Tree[B] = {
+    fold(t)(a => Leaf(f(a)): Tree[B])(Branch(_,_))
   }
 }
