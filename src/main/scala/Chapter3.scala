@@ -49,7 +49,7 @@ package object List {
 
     val l2 = List(2,4,6,8,10,11)
     val fEven:Pred[Int] = x => x % 2 == 0
-    println(dropWhile(f, l))    // prints Cons(11,Nil)
+    println(dropWhile(fEven, l2))    // prints Cons(11,Nil)
 
     val example = Cons(1, Cons(2, Cons(3, Nil)))
     val example2 = List(1,2,3)
@@ -285,7 +285,7 @@ package object Tree {
   // this more general function. Can you draw an analogy between this fold function 
   // and the left and right folds for List?
   def fold_Bad[A,B](t:Tree[A], z:B)(f:(A,B) => B): B = t match {
-    case Branch(left, right) => fold(left, fold(right, z)(f))(f)
+    case Branch(left, right) => fold_Bad(left, fold_Bad(right, z)(f))(f)
     case Leaf(v) => f(v, z)
   }
   // Please note that the signature above was wrong; from the solutions, the following was the

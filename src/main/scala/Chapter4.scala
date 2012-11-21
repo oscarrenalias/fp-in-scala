@@ -1,4 +1,6 @@
-package object Chapter4 {
+import scala.collection.immutable.List
+
+package object Option {
 
 	// Exercise 1: implement the functions below:		
 	trait Option[+A] {
@@ -61,10 +63,10 @@ package object Chapter4 {
 
 	// Better implementation - I must be stupid not to have seen this one :)
 	def map2_better[A,B,C](a: Option[A], b: Option[B])(f: (A, B) => C): Option[C] = {
-		for {
+		for {
 			a1 <- a
 			b1 <- b
-		} yield(f(a,b))
+		} yield(f(a1,b1))
 	}
 
 	map2(o1, o5)((x,y) => x*y)
@@ -122,6 +124,65 @@ package object Chapter4 {
 	// implement sequence in terms of traverse.
 	def traverse[A, B](a: List[A])(f: A => Option[B]): Option[List[B]] = sequence(a.map(x => f(x)))	// trivial :)
 
-	def traverse[A, B](a: List[A])(f: A => Option[B]): Option[List[B]] = 
-		a.foldRight[Option[List[B]]](Some(Nil))((x,y) => map2(x,y)(_ :: _))
+	def traverse_better[A, B](a: List[A])(f: A => Option[B]): Option[List[B]] =
+		a.foldRight[Option[List[B]]](Some(Nil))((x,y) => map2(f(x),y)(_ :: _))
+}
+
+package object Either {
+  // Exercise 7: implement the Either type
+
+  trait Either[+E, +A] {
+    def map[B](f: A => B): Either[E, B] = this match {
+      case Left(e) => Left(e)
+      case Right(b) => Right(f(b))
+    }
+
+    def flatMap[EE>:E,B](f: A => Either[EE, B]): Either[EE, B] = this match {
+      case Left(e) => Left(e)
+      case Right(b) => f(b)
+    }
+
+    def orElse[EE>:E,B>:A](b: Either[EE, B]): Either[EE, B] = this match {
+      case Left(_) => b
+      case _ => this
+    }
+
+    def map2[EE>:E, B, C](b: Either[EE, B])(f: (A, B) => C): Either[EE, C] = for {
+      a1 <- this
+      b1 <- b
+    } yield(f(a1,b1))
+  }
+
+  case class Left[+E](value: E) extends Either[E, Nothing]
+  case class Right[+A](value: A) extends Either[Nothing, A]
+
+  // TODO: convert this to ScalaCheck or something to make unit testing easier!
+  val e1:Either[Int, Int] = Left(1)
+  val e2 = Right("Hello")
+  val e3 = Right(10)
+
+  e1.map(_ * 2)   // Left(1)
+  e2.map(_ + ", world")
+  e3.map(_ * 2)
+  e2.flatMap(_ => Left(0))
+  e2.flatMap(x => Right(x + ", world"))
+  e1.orElse(Right("I am right!"))   // Right("I am right")
+
+  e1.map2(e2)((a,b) => a + b)   // Left(1)
+  e2.map2(Right(", world"))((a,b) => a + b)   // Right("Hello, world")
+
+  // EXERCISE 8: Implement sequence and traverse for Either.
+  def traverse[E,A,B](es: List[A])(f: A => Either[E, B]): Either[E, List[B]] = {
+    es.foldRight[Either[E,List[B]]](Right(Nil))((x,y) => f(x).map2(y)(_ :: _))
+  }
+
+  def sequence[E,A](es: List[Either[E, A]]): Either[E, List[A]] = traverse(es)(a => a)
+
+  val l1 = List(1, 2, 3, 4, 5, 0)
+  val el2 = List(Right(1), Right(2), Right(3), Left(-1), Right(4))
+  val el3 = List(Right(1), Right(2), Right(3), Right(-1), Right(4))
+  traverse(l1)(x => Right(x * 2))   // Right(List(2, 4, 6, 8, 10, 0))
+  traverse(el2)(x => x map { i => i * 2})   // Left(-1)
+  sequence(el2)   // Left(-1)
+  sequence(el3)   // Right(List(...))
 }
