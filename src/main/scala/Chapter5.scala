@@ -1,4 +1,4 @@
-//package object Stream {
+package object Stream {
 
   trait Stream[+A] {
     def uncons: Option[(A, Stream[A])]
@@ -224,4 +224,4 @@
   Stream(1,2,4,5).startsWith(Stream(4,5))   // false?
 
   Stream(1,2,3).tails   // Stream(Stream(1,2,3), Stream(2,3), Stream(3))
-//}
+}
