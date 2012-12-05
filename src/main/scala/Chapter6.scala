@@ -93,7 +93,109 @@ object RNG {
 
   def nextInt: Rand[Int] = rng => rng.nextInt
   def ints_sequence(n: Int): Rand[List[Int]] = sequence(scala.collection.immutable.List.fill(n)(nextInt))
+
+  // EXERCISE 9: Implement flatMap, then use it to reimplement positiveInt.
+  def flatMap[A,B](f: Rand[A])(g: A => Rand[B]): Rand[B] = { rng =>
+    val (a, rng2) = f(rng)
+    g(a)(rng2)
+  }
+
+  def positiveInt_flatMap: Rand[Int] = flatMap(nextInt)(i => i match {
+    case i if i == Int.MinValue => positiveInt_flatMap
+    case i => unit(i.abs)
+  })
+
+  // EXERCISE 10: Reimplement map and map2 in terms of flatMap
+  def map_flatMap[A,B](s: Rand[A])(f: A => B): Rand[B] = {
+    val g: A => Rand[B] = a => unit(f(a))   // transform f:A=>B to f:A=>Rand[B]
+    flatMap(s)(g)
+  }
+
+  def map2_flatMap[A,B, C](s1: Rand[A], s2: Rand[B])(f: (A, B) => C): Rand[C] = {
+    flatMap(s1)(a => map(s2)(b => f(a,b)))
+  }
 }
 
-val r1 = RNG.simple(10L)
-RNG.positiveInt(r1)   // (some integer, rng)
+case class State[S,+A](run: S => (A,S)) {
+  def map[B](f: A=>B): State[S, B] = State(x => run(x) match {
+    case (a,s) => (f(a), s)
+  })
+
+  def map2[B,C](s2: State[S,B])(f: (A,B) => C): State[S, C] = flatMap(a => s2.map(b => f(a,b)))
+
+  def flatMap[B](f: A=>State[S,B]): State[S,B] = State(x => run(x) match {
+    case (a,s) => f(a).run(s)
+  })
+
+  // EXERCISE 12: Come up with the signatures for getState and setState, then write their implementations.
+  def getState[S]: State[S, S] = State(s => (s, s))
+
+  def setState[S](s: S): State[S, Unit] = State(x => ((), s))
+}
+
+object State {
+  // EXERCISE 11: Generalize the functions unit, map, map2, flatMap, and sequence. Add them
+  // as methods on the State case class where possible. Otherwise you should put them
+  // in a State companion object.
+
+  def unit[S, A](a: A): State[S, A] = new State(x => (a, x))
+
+  def sequence[S,A](sas: List[State[S, A]]): State[S, List[A]] =
+    sas.foldRight(unit[S, List[A]](List()))((f, acc) => f.map2(acc)(_ :: _))
+}
+
+// EXERCISE 13 (hard): To gain experience with the use of State, implement a simulation of a simple
+// candy dispenser. The machine has two types of input: You can insert a coin, or you can turn the knob
+// to dispense candy. It can be in one of two states: locked or unlocked. It also tracks how many
+// candies are left and how many coins it contains.
+
+/*
+The rules of the machine are as follows:
+- Inserting a coin into a locked machine will cause it to unlock if there is any candy left.
+- Turning the knob on an unlocked machine will cause it to dispense candy and become locked.
+- Turning the knob on a locked machine or inserting a coin into an unlocked machine does nothing.
+- A machine that is out of candy ignores all inputs.
+ */
+
+// Note: not finished
+
+sealed trait Input
+case object Coin extends Input
+
+case object Turn extends Input
+case class Machine(locked: Boolean, candies: Int, coins: Int) {
+  // The method simulateMachine should operate the machine based on the list of inputs and return
+  // the number of coins that the machine accepted during the simulation.
+
+  def run(i: Input): State[Machine, Int] = (i, this) match {
+    case (_, s@Machine(_, 0, _)) => State(x=>(coins, s))    // no candy - ignore all input
+    case (Coin, s@Machine(false, _, _)) => State(x=>(coins, s))   // insert coin in unlocked machine - does nothing
+    case (Turn, s@Machine(true, _, _)) => State(x=>(coins, s)) // turn a locked machine - does nothing
+    case (Coin, Machine(true, candies, _)) => State(x=>(coins+1, Machine(false, candies, coins+1))) // insert coin if locked -> unlock
+    case (Turn, Machine(false, candies, coins)) => State(x=>(coins, Machine(true, candies-1, coins)))  // not locked; give candy and lock
+  }
+}
+
+case object Machine {
+  def t(inputs: List[Input]): List[Machine => Machine] = {
+    inputs.map(i => (s: Machine) => (i, s) match {
+      case (_, Machine(_, 0, _)) => s
+      case (Coin, Machine(false, _, _)) => s
+      case (Turn, Machine(true, _, _)) => s
+      case (Coin, Machine(true, candy, coin)) => Machine(false, candy, coin + 1)
+      case (Turn, Machine(false, candy, coin)) => Machine(true, candy - 1, coin)
+    })
+  }
+
+  def simulateMachine(inputs: List[Input]): State[Machine, Int] = {
+    inputs.map(i => (s: Machine) => (i, s) match {
+      case (_, Machine(_, 0, _)) => s
+      case (Coin, Machine(false, _, _)) => s
+      case (Turn, Machine(true, _, _)) => s
+      case (Coin, Machine(true, candy, coin)) => Machine(false, candy, coin + 1)
+      case (Turn, Machine(false, candy, coin)) => Machine(true, candy - 1, coin)
+    })
+
+    State.unit[Machine, Int](0)
+  }
+}
